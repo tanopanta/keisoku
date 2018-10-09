@@ -1,10 +1,8 @@
 import argparse
 import csv
 import os
-import queue
 import signal
 import time
-import threading
 import grovepi2 as grovepi
 from datetime import datetime
 
@@ -12,24 +10,11 @@ import numpy as np
 
 import signal_processing as sp
 
-fs_pulse = 500
-buff_size = fs_pulse * 10
+fs_pulse = 512
+save_interval = 10
+BUFF_SIZE = fs_pulse * save_interval
+next_buff_size = BUFF_SIZE
 
-class CalcThread(threading.Thread):
-    """
-    キューにデータが来たら処理して保存を繰り返すスレッド
-    """
-    def run(self):
-        while True:
-            try:
-                #キューからデータを取得する
-                pulse = que.get()
-            except queue.Empty:
-                print("empty")
-                break
-            #print(time.time())
-            rri = sp.pulse_to_rri(pulse, fs_pulse, 2)
-            #print(rri)
 
 
 def save(pulse):
@@ -45,6 +30,7 @@ def task(signum, frame):
     
     global count
     global data
+    global next_buff_size
     count += 1
     try:
         sensor_value = grovepi.analogRead(1)
@@ -54,12 +40,16 @@ def task(signum, frame):
             timestamp = time.time()        
         #data.append([timestamp, sensor_value])
         data.append(sensor_value)
-        """
-        if len(data) >= buff_size:
-            que.put(data)
-            #data = data[fs_pulse*10:]
+        if len(data) >= next_buff_size:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            start = time.time()
+            rri = sp.pulse_to_rri(data, fs_pulse, 2, save_interval)
+            
+            
             data = []
-         """
+            next_buff_size = int(BUFF_SIZE - fs_pulse * (time.time() - start))
+            print(rri)
+            signal.setitimer(signal.ITIMER_REAL, 1 / fs_pulse, 1 / fs_pulse)
 
     except KeyboardInterrupt:
         print("キーボードインタラプト")
@@ -91,15 +81,11 @@ data = []
 times = []
 count = 0
 
-que = queue.Queue()
-
-thd = CalcThread(daemon=True)#デーモンスレッド（メインスレッドと同時に落ちる）
-#thd.start()
-
 
 #タイマー処理を設定
 signal.signal(signal.SIGALRM, task)
 signal.setitimer(signal.ITIMER_REAL, 1 / fs_pulse, 1 / fs_pulse)
+
 print("start")
 try:
     print(keisoku_seconds, "秒計測")
