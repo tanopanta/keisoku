@@ -18,11 +18,11 @@ next_buff_size = BUFF_SIZE
 
 
 def save(pulse):
-    print("save " + fname + " ...")
-    with open(fname + "heart.csv", 'w') as file:
+    #print("save " + fname + " ...")
+    with open(fname + "heart.csv", 'a') as file:
         writer = csv.writer(file, lineterminator='\n')
-        writer.writerows(pulse)
-    print("done")
+        writer.writerow(pulse)
+    #print("done")
 
 def task(signum, frame):
     #タイマー処理
@@ -44,11 +44,11 @@ def task(signum, frame):
             signal.setitimer(signal.ITIMER_REAL, 0)
             start = time.time()
             rri = sp.pulse_to_rri(data, fs_pulse, 2, save_interval)
-            
+            save(rri)
             
             data = []
             next_buff_size = int(BUFF_SIZE - fs_pulse * (time.time() - start))
-            print(rri)
+            
             signal.setitimer(signal.ITIMER_REAL, 1 / fs_pulse, 1 / fs_pulse)
 
     except KeyboardInterrupt:
@@ -93,15 +93,11 @@ try:
     while time.time() - start < keisoku_seconds:
         time.sleep(1)
     signal.setitimer(signal.ITIMER_REAL, 0)
-    diffs = np.diff(times)
-    np.savetxt("times.csv", diffs)
     #save(data)
 except KeyboardInterrupt:
     print("キーボードインタラプト")
     signal.setitimer(signal.ITIMER_REAL, 0)
     #print(np.diff(times))
-    diffs = np.diff(times)
-    np.savetxt("times.csv", diffs)
     if args.save:
         #save(data)
         pass

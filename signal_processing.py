@@ -6,19 +6,18 @@ from scipy.interpolate import interp1d
 def pulse_to_rri(pulse, fs, hokan_fs, interval):
     #脈波からRRIの時系列データに変換
     peak_indexes, _ = sg.find_peaks(pulse, height=0, distance=fs//2)
-    peak_diffs = np.gradient(peak_indexes) / fs
+    peak_diffs = np.gradient(peak_indexes) / fs #RR間隔の計算
     
     peak_seconds = peak_indexes / fs
     
     f = interp1d(peak_seconds, peak_diffs, kind="cubic", fill_value='extrapolate')
-    new_sample_len = interval * hokan_fs#len(pulse) / (fs / hokan_fs)
+    new_sample_len = interval * hokan_fs
     xnew = np.linspace(0 , interval-1, num=new_sample_len)
     hokan = f(xnew)
-    
     return hokan
 
 def rri_to_lfhf(rri, fs, fft_size):
-    #RRIの時系列
+    #RRIの時系列からlf/hfを計算
     hokan = sg.detrend(rri, type="constant")
     #hokan = hokan[hokan_fs//2:-hokan_fs] #前後1秒分ぐらいをカット
     
