@@ -9,7 +9,7 @@ def pulse_to_rri(pulse, fs, hokan_fs, interval):
     
     pulse = sg.medfilt(pulse, 3) #スパイクノイズの削除
     lpf_fil = sg.firwin(33, fc / (fs/2.0), window="hamming")
-    pulse = sg.lfilter(lpf_fil, 1, pulse)
+    #pulse = sg.lfilter(lpf_fil, 1, pulse)
     #pulse -= 511 #DC成分
     
     peak_indexes, _ = sg.find_peaks(pulse, height=0, distance=fs//2.338)
