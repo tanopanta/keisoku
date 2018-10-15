@@ -30,6 +30,7 @@ if not os.path.isdir(fdir):
 def save(pulse, seconds):
     print("計算中...")
     rri = sp.pulse_to_rri(pulse, fs_pulse, 2, seconds)
+    lfhf = sp.rri_to_lfhf(rri, 2, 2048)
     print("save " + fname + " ...")
     timestamp = start
     with open(fname + "rri.csv", 'w') as file:

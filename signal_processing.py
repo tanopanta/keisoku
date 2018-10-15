@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.signal as sg
+import math
 from scipy import integrate
 from scipy.interpolate import interp1d
 
@@ -12,7 +13,7 @@ def pulse_to_rri(pulse, fs, hokan_fs, interval):
     #pulse = sg.lfilter(lpf_fil, 1, pulse)
     #pulse -= 511 #DC成分
     
-    peak_indexes, _ = sg.find_peaks(pulse, height=0, distance=fs//2.338)
+    peak_indexes, _ = sg.find_peaks(pulse, height=0, distance=fs//2.0)
     peak_diffs = np.gradient(peak_indexes) / fs #RR間隔の計算
     
     peak_seconds = peak_indexes / fs
@@ -28,21 +29,31 @@ def rri_to_lfhf(rri, fs, fft_size):
     hokan = sg.detrend(rri, type="constant")
     #hokan = hokan[hokan_fs//2:-hokan_fs] #前後1秒分ぐらいをカット
     
-    window = np.hanning(len(hokan))
-    hokan = hokan * window 
+    interval = 30#30秒毎に取る
+    
+    out_len = int(len(rri) / fs // interval) 
+    result = [0.0]
+    
+    for i in range(out_len):
+        rri_tmp = hokan[i*interval:i*interval+120]
+        print(rri_tmp)
+        window = np.hanning(len(rri_tmp))
+        rri_tmp = rri_tmp * window 
+        
+        
+        f = np.fft.fft(rri_tmp, n=fft_size) #fft_size点でfft
+        amp = np.abs(f) #a + ib => sqrt(a^2 + b^2)
+        pow = amp ** 2 #パワースペクトルに
+        
+        #ストレス値計算------------
+        lf_min = hz_to_idx(0.04, fs, fft_size)
+        lf_max = hz_to_idx(0.15, fs, fft_size)
+        hf_min = lf_max # + 1(sumの場合)
+        hf_max = hz_to_idx(0.4, fs, fft_size)
+        lf = integrate.trapz(pow[lf_min:lf_max+1]) #台形公式による積分
+        hf = integrate.trapz(pow[hf_min:hf_max+1]) 
+        result.append(lf/hf)
+    return result
 
-    f = np.fft.fft(hokan, n=fft_size) #fft_size点でfft
-    amp = np.abs(f) #a + ib => sqrt(a^2 + b^2)
-    pow = amp ** 2 #パワースペクトルに
-
-    #ストレス値計算------------
-    lf_min = hz_to_idx(0.04, fs, fft_size)
-    lf_max = hz_to_idx(0.15, fs, fft_size)
-    hf_min = lf_max # + 1(sumの場合)
-    hf_max = hz_to_idx(0.4, fs, fft_size)
-    lf = integrate.trapz(pow[lf_min:lf_max+1]) #台形公式による積分
-    hf = integrate.trapz(pow[hf_min:hf_max+1]) 
-    return lf/hf
-
-def hz_to_idx(self, hz, fs, point):
+def hz_to_idx(hz, fs, point):
     return math.ceil(hz / (fs / (point)))
