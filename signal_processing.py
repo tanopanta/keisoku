@@ -6,10 +6,16 @@ from scipy.interpolate import interp1d
 
 def pulse_to_rri(pulse, fs, hokan_fs, interval):
     #脈波からRRIの時系列データに変換
-    fc = 2.338
+    #fc = 2.338
     
     pulse = sg.medfilt(pulse, 3) #スパイクノイズの削除
-    lpf_fil = sg.firwin(33, fc / (fs/2.0), window="hamming")
+    
+    num = 44 #移動平均の個数
+    filt = np.ones(num) / num
+
+    pulse = np.convolve(pulse, filt, mode='same')#移動平均
+    
+    #lpf_fil = sg.firwin(33, fc / (fs/2.0), window="hamming")
     #pulse = sg.lfilter(lpf_fil, 1, pulse)
     #pulse -= 511 #DC成分
     
@@ -24,19 +30,17 @@ def pulse_to_rri(pulse, fs, hokan_fs, interval):
     hokan = f(xnew)
     return hokan
 
-def rri_to_lfhf(rri, fs, fft_size):
+def rri_to_lfhf(rri, fs, fft_size, interval=10):
     #RRIの時系列からlf/hfを計算
     hokan = sg.detrend(rri, type="constant")
     #hokan = hokan[hokan_fs//2:-hokan_fs] #前後1秒分ぐらいをカット
     
-    interval = 30#30秒毎に取る
     
     out_len = int(len(rri) / fs // interval) 
     result = [0.0]
     
     for i in range(out_len):
         rri_tmp = hokan[i*interval:i*interval+120]
-        print(rri_tmp)
         window = np.hanning(len(rri_tmp))
         rri_tmp = rri_tmp * window 
         

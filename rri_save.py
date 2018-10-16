@@ -8,6 +8,9 @@ from datetime import datetime
 
 import signal_processing as sp
 fs_pulse = 512
+fs_rri = 2
+lfhf_interval = 10 #１０秒ごとにlf/hfを出力
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument("id" , help="IDを指定してください", type=str)
@@ -29,13 +32,16 @@ if not os.path.isdir(fdir):
 
 def save(pulse, seconds):
     print("計算中...")
-    rri = sp.pulse_to_rri(pulse, fs_pulse, 2, seconds)
-    lfhf = sp.rri_to_lfhf(rri, 2, 2048)
+    rri = sp.pulse_to_rri(pulse, fs_pulse, fs_rri, seconds)
+    lfhf = sp.rri_to_lfhf(rri, fs_rri, 2048, lfhf_interval)
     print("save " + fname + " ...")
     timestamp = start
     with open(fname + "rri.csv", 'w') as file:
-        for i in rri:
-            line = "{0}, {1}\n".format(timestamp, i)
+        for i, v in enumerate(rri):
+            lfhf_str = ""
+            if i % (lfhf_interval*fs_rri) == 0:
+                lfhf_str = lfhf.pop(0)
+            line = "{0}, {1}, {2}\n".format(timestamp, v, lfhf_str)
             file.write(line)
             timestamp += 0.5
     print("done")
@@ -78,6 +84,6 @@ except KeyboardInterrupt:
         if answer == "y":
             save(data, int(time.time() - start))
 except Exception as e:
-    import logging
-    logging.exception(e)
+    #import logging
+    #logging.exception(e)
     save(data, int(time.time() - start))
