@@ -9,7 +9,7 @@ from datetime import datetime
 import signal_processing as sp
 fs_pulse = 512
 fs_rri = 2
-lfhf_interval = 10 #１０秒ごとにlf/hfを出力
+lfhf_interval = 5 #１０秒ごとにlf/hfを出力
 
 
 parser = argparse.ArgumentParser()
@@ -40,7 +40,10 @@ def save(pulse, seconds):
         for i, v in enumerate(rri):
             lfhf_str = ""
             if i % (lfhf_interval*fs_rri) == 0:
-                lfhf_str = lfhf.pop(0)
+                try:
+                    lfhf_str = lfhf.pop(0)
+                except:
+                    lfhf_str = ""
             line = "{0}, {1}, {2}\n".format(timestamp, v, lfhf_str)
             file.write(line)
             timestamp += 0.5

@@ -31,16 +31,27 @@ def pulse_to_rri(pulse, fs, hokan_fs, interval):
     return hokan
 
 def rri_to_lfhf(rri, fs, fft_size, interval=10):
-    #RRIの時系列からlf/hfを計算
+    """RRIの時系列からlf/hfを計算 
+    計算に60秒分使うため前後30秒は0.0
+    """
     hokan = sg.detrend(rri, type="constant")
     #hokan = hokan[hokan_fs//2:-hokan_fs] #前後1秒分ぐらいをカット
     
     
-    out_len = int(len(rri) / fs // interval) 
-    result = [0.0]
+    out_len = int(len(rri) / fs // interval)
+    out_len -= 60//interval
+    if out_len <= 0:
+        print("lf/hfの計算には１分以上のデータが必要です")
+    result = [0.0] * (60//interval//2)
+    
+    lf_min = hz_to_idx(0.04, fs, fft_size)
+    lf_max = hz_to_idx(0.15, fs, fft_size)
+    hf_min = lf_max # + 1(sumの場合)
+    hf_max = hz_to_idx(0.4, fs, fft_size)
     
     for i in range(out_len):
-        rri_tmp = hokan[i*interval:i*interval+120]
+        rri_tmp = hokan[i*interval:i*interval + fs*60]
+
         window = np.hanning(len(rri_tmp))
         rri_tmp = rri_tmp * window 
         
@@ -50,13 +61,11 @@ def rri_to_lfhf(rri, fs, fft_size, interval=10):
         pow = amp ** 2 #パワースペクトルに
         
         #ストレス値計算------------
-        lf_min = hz_to_idx(0.04, fs, fft_size)
-        lf_max = hz_to_idx(0.15, fs, fft_size)
-        hf_min = lf_max # + 1(sumの場合)
-        hf_max = hz_to_idx(0.4, fs, fft_size)
         lf = integrate.trapz(pow[lf_min:lf_max+1]) #台形公式による積分
         hf = integrate.trapz(pow[hf_min:hf_max+1]) 
         result.append(lf/hf)
+    for i in range(60//interval//2):
+        result.append(0.0)
     return result
 
 def hz_to_idx(hz, fs, point):
